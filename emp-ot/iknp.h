@@ -144,7 +144,6 @@ class IKNP: public COT<T> { public:
 		// 分段，每段都是block_size
 		// 也就是说每个recv_pre_block都要处理一个block_size * 128的矩阵
 		// 并得到block_size个block，每个block都是矩阵T的一行
-		// ***********分段是为了转置吗
 		for (; j < length/block_size; ++j)
 			recv_pre_block(out+j*block_size, block_r + (j*block_size/128), block_size);
 		int64_t remain = length % block_size;

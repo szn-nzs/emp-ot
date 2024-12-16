@@ -3,6 +3,7 @@
 #include "emp-ot/cot.h"
 #include "emp-ot/co.h"
 #include "emp-ot/mybaseOT.h"
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -25,11 +26,17 @@ protected:
 
 class myIKNPSender : public myIKNP {
 public:
-	myIKNPSender(std::shared_ptr<Group> _G) : ot_receiver(_G, 128) {}
+	myIKNPSender(std::shared_ptr<Group> _G) : ot_receiver(_G, 128), setQ(false) {}
+	const BaseOTReceiver& getOTReceiver() {
+		return ot_receiver;
+	}
 	const block& getDelta() {
 		return Delta;
 	}
 	const vector<block>& getQ() {
+		if (!setQ) {
+			error("q not set\n");
+		}
 		return q;
 	}
 
@@ -64,9 +71,11 @@ public:
 			sendPreBlock(U[j], local_out, remain);
 			memcpy(q.data()+j*block_size, local_out, sizeof(block)*remain);
 		}
+		setQ = true;
 	}
 
 private:
+	bool setQ = false;
 	bool s[128];
 	block k0[128], Delta;
 	PRG G0[128];
@@ -91,8 +100,14 @@ private:
 
 class myIKNPReceiver : public myIKNP {
 public:
-	myIKNPReceiver(std::shared_ptr<Group> _G) : ot_sender(_G, 128) {}
+	myIKNPReceiver(std::shared_ptr<Group> _G) : ot_sender(_G, 128), setT(false) {}
+	const BaseOTSender& getOTSender() {
+		return ot_sender;
+	}
 	const vector<block>& getT() {
+		if (!setT) {
+			error("T not set\n");
+		}
 		return T;
 	}
 
@@ -146,10 +161,12 @@ public:
 		}
 		delete[] block_r;
 
+		setT = true;
 		return res;
 	}
 
 private:
+	bool setT = false;
 	block k0[128], k1[128];
 	PRG G0[128], G1[128];
 	vector<block> T;

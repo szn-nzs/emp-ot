@@ -6,5 +6,6 @@
 #include "emp-ot/cot.h"
 #include "emp-ot/mybaseOT.h"
 #include "emp-ot/myIKNP.h"
+#include "emp-ot/myNOT.h"
 
 #include "emp-ot/ferret/ferret_cot.h"
