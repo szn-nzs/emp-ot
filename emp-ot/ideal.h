@@ -13,14 +13,19 @@ class OTIdeal: public COT<T> { public:
 		this->io = io;
 		prg.reseed((const block *)fix_key);
 		if (delta!= nullptr)
+		// bool_to_block delta是一个bool数组
+		// 所以相当于Delta里最多128个bool
 			Delta = bool_to_block(delta);
 	}
 
+// 得到data
 	void send_cot(block* data, int64_t length) override {
 		cnt+=length;
 		prg.random_block(data);
 	}
 
+// 得到data^(b&Delta)
+// b是OT recv的选择向量
 	void recv_cot(block* data, const bool* b, int64_t length) override {
 		cnt+=length;
 		prg.random_block(data);

@@ -16,6 +16,7 @@ macro (add_test_case_with_run _name)
 endmacro()
 
 # Test cases
-add_test_case_with_run(ot)
-add_test_case_with_run(ferret)
-add_test_case(bench_lpn)
+add_test_case_with_run(myOT)
+#add_test_case_with_run(ot)
+#add_test_case_with_run(ferret)
+#add_test_case(bench_lpn)

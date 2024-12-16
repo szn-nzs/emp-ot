@@ -1,4 +1,8 @@
+#include "emp-ot/mybaseOT.h"
 #include "test/test.h"
+#include <cstdio>
+#include <emp-tool/utils/group.h>
+#include <memory>
 using namespace std;
 
 const static int threads = 1;
@@ -9,6 +13,8 @@ int main(int argc, char** argv) {
 		length = (1<<20) + 101;
 	else
 		length = (1<<atoi(argv[3])) + 101;
+	// int maxChoice = 4;
+
 
 	parse_party_and_port(argv, &party, &port);
 	NetIO * io = new NetIO(party==ALICE ? nullptr:"127.0.0.1", port);
@@ -19,6 +25,7 @@ int main(int argc, char** argv) {
 	cout <<"Passive IKNP OT\t"<<double(length)/test_ot<IKNP<NetIO>>(iknp, io, party, length)*1e6<<" OTps"<<endl;
 	cout <<"Passive IKNP COT\t"<<double(length)/test_cot<IKNP<NetIO>>(iknp, io, party, length)*1e6<<" OTps"<<endl;
 	cout <<"Passive IKNP ROT\t"<<double(length)/test_rot<IKNP<NetIO>>(iknp, io, party, length)*1e6<<" OTps"<<endl;
+	// cout <<"Passive IKNP NOT\t"<<double(1)/test_not<IKNP<NetIO>>(iknp, io, party, maxChoice)*1e6<<" OTps"<<endl;
 	delete iknp;
 
 	OTCO<NetIO> * co = new OTCO<NetIO>(io);

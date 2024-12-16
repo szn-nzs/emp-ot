@@ -1,5 +1,6 @@
 #ifndef EMP_OTCO_H__
 #define EMP_OTCO_H__
+#include <cstdio>
 #include <emp-tool/emp-tool.h>
 #include "emp-ot/ot.h"
 namespace emp {
@@ -43,17 +44,21 @@ class OTCO: public OT<IO> { public:
 		AaInv = AaInv.inv();
 
 		for(int64_t i = 0; i < length; ++i) {
+			printf("%d\n", length);
+		printf("222\n");
 			io->recv_pt(G, &B[i]);
 			B[i] = B[i].mul(a);
 			BA[i] = B[i].add(AaInv);
 		}
 		io->flush();
+		printf("111\n");
 
 		for(int64_t i = 0; i < length; ++i) {
 			res[0] = Hash::KDF(B[i], i) ^ data0[i];
 			res[1] = Hash::KDF(BA[i], i) ^ data1[i];
 			io->send_data(res, 2*sizeof(block));
 		}
+		printf("111\n");
 
 		delete[] BA;
 		delete[] B;
@@ -74,6 +79,8 @@ class OTCO: public OT<IO> { public:
 			B[i] = G->mul_gen(bb[i]);
 			if (b[i]) 
 				B[i] = B[i].add(A);
+			printf("%d\n", length);
+		printf("222\n");
 			io->send_pt(&B[i]);
 		}
 		io->flush();

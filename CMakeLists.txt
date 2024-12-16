@@ -1,6 +1,9 @@
 cmake_minimum_required (VERSION 3.0)
+set(CMAKE_CXX_STANDARD 20)
 project (emp-ot)
 set(NAME "emp-ot")
+set(CMAKE_EXPORT_COMPILE_COMMANDS True)
+set(CMAKE_CXX_FLAGS "-std=c++20${CMAKE_CXX_FLAGS}")
 
 find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-base.cmake)

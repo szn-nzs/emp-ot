@@ -1,7 +1,107 @@
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <emp-tool/emp-tool.h>
 #include "emp-ot/emp-ot.h"
+#include "emp-ot/mybaseOT.h"
+// #include "emp-ot/myIKNP.h"
+#include <emp-tool/utils/block.h>
+#include <emp-tool/utils/group.h>
 #include <iostream>
+#include <span>
+#include <vector>
 using namespace emp;
+
+double test_mybaseOT(BaseOTSender *otsender, BaseOTReceiver *otreceiver, int64_t length) {
+	PRG prg(fix_key);
+	PRG prg2;
+
+	block *data0 = new block[length];
+	block *data1 = new block[length];
+	bool *r = new bool[length];
+	prg.random_block(data0, length);
+	prg.random_block(data1, length);
+	prg2.random_bool(r, length);
+	// std::span<block> b0(data0, length);
+	
+	auto start = clock_start();
+	Point A = otsender->sendA();
+	std::vector<Point> B = otreceiver->sendB(A, std::span(r, length));
+	BaseOTSender::EType E = otsender->sendE(B, std::span(data0, length), std::span(data1, length));
+	std::vector<block> data = otreceiver->getM(A, E, std::span(r, length));
+	long long t = time_from(start);
+	
+	for (int64_t i = 0; i < length; ++i) {
+		if (r[i]){ 
+			if(!cmpBlock(&data[i], &data1[i], 1)) {
+				std::cout <<i<<"\n";
+				error("wrong!\n");
+			}
+		}
+		else { 
+			if(!cmpBlock(&data[i], &data0[i], 1)) {
+				std::cout <<i<<"\n";
+				error("wrong!\n");
+			}
+		}
+	}
+	std::cout << "Tests passed.\t";
+
+	delete []data0;
+	delete []data1;
+	delete []r;
+	return t;
+}
+
+double test_myCOT(myIKNPSender* sender, myIKNPReceiver* receiver, int64_t length) {
+	PRG prg;
+
+	// block *data0 = new block[length];
+	bool *r = new bool[length];
+	block delta;
+	// prg.random_block(data0, length);
+	prg.random_bool(r, length);
+
+	auto start = clock_start();
+	sender->setupSend();
+	receiver->setupRecv();
+	Point A = receiver->baseOTMsg1();
+	std::vector<Point> B = sender->baseOTMsg1(A);
+	BaseOT::EType E = receiver->baseOTMsg2(B);
+	sender->baseOTGetData(A, E);
+
+	vector<vector<block>> U = receiver->recvPre(std::span(r, length), length);
+	sender->sendPre(U, length);
+
+	long long t = time_from(start);
+	delta = sender->getDelta();
+	for (int64_t i = 0; i < length; ++i) {
+		block data0 = receiver->getT()[i];
+		block data1 = data0 ^ delta;
+		if (r[i]) {
+			if (!cmpBlock(&sender->getQ()[i], &data1, 1)) {
+				print128_num(sender->getQ()[i]);
+				print128_num(data1);
+				print128_num(data0);
+				printf("111pos: %d\n", i);
+				error("COT failed!");
+			}
+		} else {
+			if (!cmpBlock(&sender->getQ()[i], &data0, 1)) {
+				print128_num(sender->getQ()[i]);
+				print128_num(data1);
+				print128_num(data0);
+				printf("222pos: %d\n", i);
+				error("COT failed!");
+			}
+		}
+	}
+	printf("Tests passed.\t");
+	delete[] r;
+
+	return t;
+}
 
 template <typename T>
 double test_ot(T * ot, NetIO *io, int party, int64_t length) {
@@ -170,6 +270,38 @@ double test_rcot(T* ot, NetIO *io, int party, int64_t length, bool inplace) {
 		delete[] b0;
 	}
 	std::cout << "Tests passed.\t";
+	delete[] b;
+	return t;
+}
+
+
+template <typename T>
+double test_not(T * ot, NetIO *io, int party, int64_t maxChoice) {
+	block *b = new block[maxChoice], *r = new block[1];
+	PRG prg(fix_key);
+	prg.random_block(b, maxChoice);
+	PRG prg2;
+	int64_t s;
+	prg2.random_data(&s, sizeof(s));
+	s %= maxChoice;
+
+	// io->sync();
+	auto start = clock_start();
+	if (party == ALICE) {
+		ot->send_not(b, maxChoice);
+	} else {
+		ot->recv_not(r, s, maxChoice);
+	}
+	io->flush();
+	long long t = time_from(start);
+	if (party == BOB) {
+		printf("bob\n");
+		if (!cmpBlock(&b[s], r, 1)) {
+			error("wrong!\n");
+		}
+	}
+	std::cout << "Tests passed.\t";
+	delete[] r;
 	delete[] b;
 	return t;
 }

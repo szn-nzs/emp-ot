@@ -38,21 +38,28 @@ class IKNP: public COT<T> { public:
 
 	void setup_send(const bool* in_s = nullptr, block * in_k0 = nullptr) {
 		setup = true;
+		// in_s是send端生成的选择向量Delta，长度为k，也就是128
 		if(in_s == nullptr)
 			prg.random_bool(s, 128);
 		else 
 			memcpy(s, in_s, 128);
 		
+		// k0是128个block，也就是128*128矩阵
 		if(in_k0 != nullptr) {
 			memcpy(k0, in_k0, 128*sizeof(block));
 		} else {
 			this->base_ot = new OTCO<T>(io);
+			// send端作为recerver
+			// 输入选择向量s（就是Delta)
+			// 收到两个seed之一
 			base_ot->recv(k0, s, 128);
 			delete base_ot;
 		}
+
 		for(int64_t i = 0; i < 128; ++i)
 			G0[i].reseed(&k0[i]);
 
+		// send端生成Delta
 		Delta = bool_to_block(s);
 	}
 
@@ -63,11 +70,14 @@ class IKNP: public COT<T> { public:
 			memcpy(k1, in_k1, 128*sizeof(block));
 		} else {
 			this->base_ot = new OTCO<T>(io);
+			// 生成两个128*128的seed
+			// OT^128_128
 			prg.random_block(k0, 128);
 			prg.random_block(k1, 128);
 			base_ot->send(k0, k1, 128);
 			delete base_ot;
 		}
+
 		for(int64_t i = 0; i < 128; ++i) {
 			G0[i].reseed(&k0[i]);
 			G1[i].reseed(&k1[i]);
@@ -77,6 +87,8 @@ class IKNP: public COT<T> { public:
 		if(not setup)
 			setup_send();
 		int64_t j = 0;
+		// length=m?
+		// block_size=1024*2
 		for (; j < length/block_size; ++j)
 			send_pre_block(out + j*block_size, block_size);
 		int64_t remain = length % block_size;
@@ -94,6 +106,7 @@ class IKNP: public COT<T> { public:
 		int64_t local_block_size = (len+127)/128*128;
 		io->recv_block(tmp, local_block_size);
 		for(int64_t i = 0; i < 128; ++i) {
+			// G(ki)
 			G0[i].random_data(t+(i*block_size/128), local_block_size/8);
 			if (s[i])
 				xorBlocks_arr(t+(i*block_size/128), t+(i*block_size/128), tmp+(i*local_block_size/128), local_block_size/128);
@@ -101,11 +114,18 @@ class IKNP: public COT<T> { public:
 		sse_trans((uint8_t *)(out), (uint8_t*)t, 128, block_size);
 	}
 
+// recv在cot中获得的输出应该是矩阵T，尺寸m*128
+// 因为我们最后要用到T的行，所以这里的out是按行表示的矩阵T，每个block就是一行
 	void recv_pre(block * out, const bool* r, int64_t length) {
 		if(not setup)
 			setup_recv();
 
+// length个block，也就是说T是一个length*128矩阵
+// 接收方持有的r长度是length
+// 算出r能分成多少个block
 		block *block_r = new block[(length+127)/128];
+		// 这个r就是recv方持有的选择向量
+		// 把r切成block
 		for(int64_t i = 0; i < length/128; ++i)
 			block_r[i] = bool_to_block(r+i*128);
 		if (length%128 != 0) {
@@ -117,6 +137,14 @@ class IKNP: public COT<T> { public:
 		}
 		
 		int64_t j = 0;
+		// recv_pre_block做的事情:
+		// 首先获得一个m*128的矩阵T，这个T是按列生成的
+		// 接下来，将T转置，得到按行表示的矩阵T，也就是一共m个block，每个block都是一行
+
+		// 分段，每段都是block_size
+		// 也就是说每个recv_pre_block都要处理一个block_size * 128的矩阵
+		// 并得到block_size个block，每个block都是矩阵T的一行
+		// ***********分段是为了转置吗
 		for (; j < length/block_size; ++j)
 			recv_pre_block(out+j*block_size, block_r + (j*block_size/128), block_size);
 		int64_t remain = length % block_size;
@@ -134,20 +162,33 @@ class IKNP: public COT<T> { public:
 		delete[] block_r;
 	}
 	void recv_pre_block(block * out, block * r, int64_t len) {
+		// t就是iknp里recv的矩阵T
+		// 是一个len*128矩阵
+		// 根据上面分段操作可知这里最多就是block_size*128矩阵
 		block t[block_size];
 		block tmp[block_size];
+
+		// 上取整到128的整数倍
 		int64_t local_block_size = (len+127)/128 * 128;
+		// 按列生成矩阵T，一共有128列
 		for(int64_t i = 0; i < 128; ++i) {
+			// t+(i*block_size/128)：每一列最大有block_size个比特，最多需要block_size/128个block
+			// 所以第i列是从i*block_size/128位置开始放
+			// local_block_size/8：生成的随机byte数，是矩阵T实际的列向量长度
 			G0[i].random_data(t+(i*block_size/128), local_block_size/8);
 			G1[i].random_data(tmp, local_block_size/8);
+			// 计算tmp=G(k0)^G(k1)^r
 			xorBlocks_arr(tmp, t+(i*block_size/128), tmp, local_block_size/128);
 			xorBlocks_arr(tmp, r, tmp, local_block_size/128);
 			io->send_data(tmp, local_block_size/8);
 		}
 
+		//转置 
 		sse_trans((uint8_t *)(out), (uint8_t*)t, 128, block_size);
 	}
 
+// cot里，send方的输出data是T^(r&Delta)和T^(\bar{r}&Delta)
+// recv方的输出是T
 	void send_cot(block * data, int64_t length) override{
 		send_pre(data, length);
 
