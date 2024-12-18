@@ -4,6 +4,7 @@
 #include <cstring>
 #include <emp-tool/emp-tool.h>
 #include "emp-ot/emp-ot.h"
+#include "emp-ot/myNOT.h"
 #include "emp-ot/mybaseOT.h"
 #include <emp-tool/utils/block.h>
 #include <emp-tool/utils/group.h>
@@ -102,7 +103,7 @@ double test_myIKNP(myIKNPSender* sender, myIKNPReceiver* receiver, int64_t lengt
 	return t;
 }
 
-double test_myNOT(myNOTSender *sender, myNOTReceiver *receiver, int64_t length) {
+double test_myCOT(myCOTSender *sender, myCOTReceiver *receiver, int64_t length) {
 	PRG prg(fix_key);
 	PRG prg2;
 
@@ -116,7 +117,7 @@ double test_myNOT(myNOTSender *sender, myNOTReceiver *receiver, int64_t length) 
 	
 	auto start = clock_start();
 	receiver->setS(sender->setS());
-	
+
 	sender->getIKNPSender().setupSend();
 	receiver->getIKNPReceiver().setupRecv();
 	Point A = receiver->getIKNPReceiver().baseOTMsg1();
@@ -127,8 +128,8 @@ double test_myNOT(myNOTSender *sender, myNOTReceiver *receiver, int64_t length) 
 	vector<vector<block>> U = receiver->getIKNPReceiver().recvPre(std::span(r, length), length);
 	sender->getIKNPSender().sendPre(U, length);
 
-	vector<vector<block>> pad = sender->send(std::span(data0, length), std::span(data1, length), length);
-	vector<block> data = receiver->recv(pad, std::span(r, length), length);
+	vector<vector<block>> pad = sender->sendCOT(std::span(data0, length), std::span(data1, length), length);
+	vector<block> data = receiver->recvCOT(pad, std::span(r, length), length);
 
 	long long t = time_from(start);
 	
@@ -155,6 +156,52 @@ double test_myNOT(myNOTSender *sender, myNOTReceiver *receiver, int64_t length) 
 	delete []data0;
 	delete []data1;
 	delete []r;
+	return t;
+}
+
+double test_myNOT(myNOTSender *sender, myNOTReceiver *receiver, int64_t maxChoice, int64_t length) {
+	block *data0 = new block[maxChoice*length];
+	PRG prg;
+	prg.random_block(data0, maxChoice*length);
+	PRG prg2;
+	int64_t s;
+	prg2.random_data(&s, sizeof(s));
+	s %= maxChoice;
+
+	// io->sync();
+	auto start = clock_start();
+	sender->setupNOT();
+	receiver->setupNOT(s);
+	receiver->setS(sender->setS());
+
+	sender->setupCOT();
+	receiver->setupCOT();
+	Point A = receiver->baseOTMsg1();
+	std::vector<Point> B = sender->baseOTMsg1(A);
+	BaseOT::EType E = receiver->baseOTMsg2(B);
+	sender->baseOTGetData(A, E);
+
+	vector<vector<block>> U = receiver->recvPre();
+	sender->sendPre(U);
+
+	vector<vector<block>> pad = sender->sendCOT();
+	vector<block> key = receiver->recvCOT(pad);
+
+	vector<block> pad1 = sender->sendNOT(std::span(data0, maxChoice*length));
+	vector<block> data = receiver->recvNOT(key, pad1);
+
+	long long t = time_from(start);
+	
+	for (int64_t i = 0; i < length; ++i) {
+		if(!cmpBlock(&data[i], &data0[s*length + i], 1)) {
+			print128_num(data[i]);
+			print128_num(data0[s*length + i]);
+			std::cout <<i<<"\n";
+			error("wrong!\n");
+		}
+	}
+	std::cout << "Tests passed.\t";
+	delete[] data0;
 	return t;
 }
 

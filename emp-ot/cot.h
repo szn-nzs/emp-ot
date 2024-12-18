@@ -45,7 +45,7 @@ public:
 			}
 			io->send_data(pad, 2*sizeof(block)*min(ot_bsize,length-i));
 		}
-		delete[] data;
+
 	}
 
 	// data是recv收到的消息，r是选择向量
@@ -70,6 +70,7 @@ public:
 				data[i+j] = res[2*j+r[i+j]] ^ pad[j];
 			}
 		}
+
 	}
 
 	void send_rot(block* data0, block* data1, int64_t length) {

@@ -1,5 +1,5 @@
 #include "emp-ot/myIKNP.h"
-#include "emp-ot/myNOT.h"
+#include "emp-ot/myCOT.h"
 #include "emp-ot/mybaseOT.h"
 #include "test/test.h"
 #include <cstdio>
@@ -26,8 +26,12 @@ int main(int argc, char** argv) {
 	myIKNPReceiver *iknp_receiver = new myIKNPReceiver(G);
 	cout <<"COT:\t"<<test_myIKNP(iknp_sender, iknp_receiver, 1 << 20)<<" us"<<endl;
 
-	myNOTSender *not_sender = new myNOTSender(G);
-	myNOTReceiver *not_receiver = new myNOTReceiver(G);
-	cout <<"NOT:\t"<<test_myNOT(not_sender, not_receiver, 1000)<<" us"<<endl;
+	myCOTSender *cot_sender = new myCOTSender(G);
+	myCOTReceiver *cot_receiver = new myCOTReceiver(G);
+	cout <<"NOT:\t"<<test_myCOT(cot_sender, cot_receiver, 1000)<<" us"<<endl;
+
+	myNOTSender *not_sender = new myNOTSender(G, 4, 128);
+	myNOTReceiver *not_receiver = new myNOTReceiver(G, 4, 128);
+	cout <<"NOT:\t"<<test_myNOT(not_sender, not_receiver, 4, 128)<<" us"<<endl;
 }
 
